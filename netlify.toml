@@ -1,10 +1,7 @@
 [build]
-  # Configura o comando de build (opcional)
-  command = "echo 'Iniciando deployment...'"
-  
-  # CORREÇÃO: Define o diretório raiz (ponto) como o publish directory.
-  # Isso impede que o Netlify procure a pasta 'public'.
+  # ESTA LINHA É CRÍTICA: Diz ao Netlify para publicar a raiz (o ponto)
   publish = "." 
+  command = "echo 'Iniciando deployment...'"
 
 [functions]
   directory = "netlify-functions"
@@ -12,3 +9,4 @@
 [build.environment]
   AWS_LAMBDA_PYTHON_RUNTIME = "python3.8"
   PIP_REQUIREMENTS = "requirements.txt"
+  # As variáveis secretas FULLTRACK devem estar no PAINEL!
