@@ -1,16 +1,16 @@
 [build]
-  # Define o comando de build (opcional, mas bom para garantir)
+  # Define o comando de build (opcional)
   command = "echo 'Iniciando deployment...'"
-  # Pasta onde os arquivos do site serão gerados (pode ser ignorada para apenas Functions)
+  # Pasta onde os arquivos do site seriam gerados (mantenha ou remova, se for apenas functions)
   publish = "public" 
 
 [functions]
   # Define o diretório onde as funções Python estão
   directory = "netlify-functions"
-  # Define o runtime como Python (o Netlify tentará instalar as dependências de requirements.txt)
-  node_bundler = "zip" 
 
 [build.environment]
-  # Configura o ambiente para Python 3.8 (versão mais comum no Lambda/Netlify)
-  AWS_LAMBDA_JS_RUNTIME = "nodejs18.x" # Ignorar esta linha se não tiver outro código JS
+  # Define o runtime para Python 3.8 (a versão Lambda mais comum no Netlify)
+  # Isso garante que ele procure por um ambiente Python, não Node.js
   AWS_LAMBDA_PYTHON_RUNTIME = "python3.8"
+  # Adicione o nome do seu arquivo de dependências (é importante!)
+  PIP_REQUIREMENTS = "requirements.txt"
