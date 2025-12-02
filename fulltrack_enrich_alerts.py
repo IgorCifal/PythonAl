@@ -3,17 +3,19 @@ import json
 import datetime
 import time
 import sys
+import os # NOVO: Importa o módulo OS para ler variáveis de ambiente
 
 # --- Configurações da API ---
-API_KEY = "84c8dfe7fd5045dad5816baeb9809608e70a38c7"
-SECRET_KEY = "4f17a2fd1646d0c42324c2248d6aaca5896b0246"
+# ATUALIZADO: As chaves são lidas das Variáveis de Ambiente do Netlify.
+API_KEY = os.environ.get("FULLTRACK_API_KEY") 
+SECRET_KEY = os.environ.get("FULLTRACK_SECRET_KEY")
 BASE_URL = "https://ws.fulltrack2.com"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 HEADERS = {
     "Content-Type": "application/json",
-    "ApiKey": API_KEY,
-    "SecretKey": SECRET_KEY,
+    "ApiKey": API_KEY, # Usa a chave lida do ambiente
+    "SecretKey": SECRET_KEY, # Usa a chave lida do ambiente
     "User-Agent": "Automation Script (WhatsApp Alert)"
 }
 
@@ -139,18 +141,8 @@ def run_automation():
     # Junta todas as mensagens em uma única string grande, separadas por duas quebras de linha
     final_report = header + "\n\n".join(filtered_alerts)
     
-    # Salva o relatório em um arquivo de texto para que o sandbox possa retornar
-    with open("relatorio_whatsapp.txt", "w", encoding="utf-8") as f:
-        f.write(final_report)
+    # REMOVIDO: Linhas que salvam o arquivo localmente, pois não são necessárias no Netlify.
         
     return [final_report]
 
-if __name__ == "__main__":
-    # Quando executado diretamente, imprime o relatório no console
-    report = run_automation()
-    print("\n" + "="*50)
-    print("RELATÓRIO FINAL (Pronto para WhatsApp):")
-    print("="*50)
-    print(report[0])
-    print("="*50)
-    print("Relatório salvo em 'relatorio_whatsapp.txt'")
+# REMOVIDO: O bloco if __name__ == "__main__": não é necessário para o Netlify Functions.
