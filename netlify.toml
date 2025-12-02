@@ -1,5 +1,5 @@
 [build]
-  # ESTA LINHA É CRÍTICA: Diz ao Netlify para publicar a raiz (o ponto)
+  # CORREÇÃO FINAL: Publica o diretório raiz para ignorar a pasta 'public'
   publish = "." 
   command = "echo 'Iniciando deployment...'"
 
@@ -9,4 +9,3 @@
 [build.environment]
   AWS_LAMBDA_PYTHON_RUNTIME = "python3.8"
   PIP_REQUIREMENTS = "requirements.txt"
-  # As variáveis secretas FULLTRACK devem estar no PAINEL!
