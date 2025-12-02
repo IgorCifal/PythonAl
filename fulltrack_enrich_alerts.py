@@ -2,27 +2,31 @@ import requests
 import json
 import datetime
 import time
-import sys
-import os # NOVO: Importa o módulo OS para ler variáveis de ambiente
+import os
 
 # --- Configurações da API ---
-# ATUALIZADO: As chaves são lidas das Variáveis de Ambiente do Netlify.
-API_KEY = os.environ.get("FULLTRACK_API_KEY") 
-SECRET_KEY = os.environ.get("FULLTRACK_SECRET_KEY")
+# Em um ambiente serverless, é melhor usar variáveis de ambiente
+# para as chaves de API por questões de segurança.
+# Se as variáveis de ambiente não estiverem definidas, ele usará as chaves padrão.
+API_KEY = os.environ.get("FULLTRACK_API_KEY", "84c8dfe7fd5045dad5816baeb9809608e70a38c7")
+SECRET_KEY = os.environ.get("FULLTRACK_SECRET_KEY", "4f17a2fd1646d0c42324c2248d6aaca5896b0246")
 BASE_URL = "https://ws.fulltrack2.com"
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 HEADERS = {
     "Content-Type": "application/json",
-    "ApiKey": API_KEY, # Usa a chave lida do ambiente
-    "SecretKey": SECRET_KEY, # Usa a chave lida do ambiente
-    "User-Agent": "Automation Script (WhatsApp Alert)"
+    "ApiKey": API_KEY,
+    "SecretKey": SECRET_KEY,
+    "User-Agent": "Serverless Function (WhatsApp Alert)"
 }
 
 # --- Funções Auxiliares ---
 
 def get_yesterday_period():
     """Calcula o Unixtime para o período de 00:00:00 a 23:59:59 do dia anterior."""
+    # Nota: Em ambientes serverless, o fuso horário pode ser UTC.
+    # Para garantir que o "dia anterior" seja o dia anterior no Brasil,
+    # pode ser necessário ajustar o fuso horário. Para simplicidade,
+    # vamos usar o fuso horário padrão do ambiente (geralmente UTC).
     today = datetime.datetime.now().date()
     yesterday = today - datetime.timedelta(days=1)
     
@@ -43,12 +47,8 @@ def get_alert_data(unixtime_start, unixtime_end):
         response = requests.get(url, headers=HEADERS, timeout=60)
         response.raise_for_status()
         return response.json()
-    except requests.exceptions.HTTPError as e:
-        print(f"Erro HTTP ao buscar alertas: {e}")
-        return {"status": False, "message": str(e)}
     except requests.exceptions.RequestException as e:
-        print(f"Erro de Conexão ao buscar alertas: {e}")
-        return {"status": False, "message": str(e)}
+        return {"status": False, "message": f"Erro ao buscar alertas: {e}"}
 
 def get_driver_name(vehicle_id, cache):
     """Busca o nome do motorista para um veículo, usando cache."""
@@ -68,8 +68,7 @@ def get_driver_name(vehicle_id, cache):
         cache[vehicle_id] = driver_name
         return driver_name
         
-    except requests.exceptions.RequestException as e:
-        print(f"Erro ao buscar motorista para Veículo {vehicle_id}: {e}")
+    except requests.exceptions.RequestException:
         return "Motorista Não Identificado (Erro API)"
 
 def format_whatsapp_message(alert, driver_name):
@@ -96,25 +95,32 @@ def format_whatsapp_message(alert, driver_name):
     )
     return message
 
-# --- Função Principal ---
+# --- Função Serverless Principal ---
 
-def run_automation():
-    """Executa o fluxo completo de busca, filtro e formatação."""
+def handler(event, context):
+    """
+    Ponto de entrada da função serverless.
+    Busca alertas, filtra e retorna o relatório formatado.
+    """
     
     unixtime_start, unixtime_end, date_str = get_yesterday_period()
-    
-    print(f"Iniciando busca de alertas para o dia: {date_str}")
     
     # 1. Buscar todos os alertas do dia anterior
     alerts_response = get_alert_data(unixtime_start, unixtime_end)
     
     if not alerts_response.get("status"):
-        return [f"❌ ERRO: Falha ao buscar alertas. {alerts_response.get('message')}"]
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": alerts_response.get('message')})
+        }
 
     all_alerts = alerts_response.get("data", [])
     
     if not all_alerts:
-        return [f"✅ Nenhum alerta encontrado para o dia {date_str}."]
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"report": f"✅ Nenhum alerta encontrado para o dia {date_str}."})
+        }
 
     # 2. Filtrar e processar
     filtered_alerts = []
@@ -132,17 +138,27 @@ def run_automation():
             message = format_whatsapp_message(alert, driver_name)
             filtered_alerts.append(message)
 
+    # 5. Montar o relatório final
     if not filtered_alerts:
-        return [f"✅ Nenhum alerta de 'IGNIÇÃO LIGADA APÓS AS 20H' encontrado para o dia {date_str}."]
-
-    # 5. Retornar o resultado final
-    header = f"🔔 *RELATÓRIO DE ALERTA DIÁRIO* 🔔\nPeríodo: {date_str}\n\n"
+        final_report = f"✅ Nenhum alerta de 'IGNIÇÃO LIGADA APÓS AS 20H' encontrado para o dia {date_str}."
+    else:
+        header = f"🔔 *RELATÓRIO DE ALERTA DIÁRIO* 🔔\nPeríodo: {date_str}\n\n"
+        final_report = header + "\n\n".join(filtered_alerts)
     
-    # Junta todas as mensagens em uma única string grande, separadas por duas quebras de linha
-    final_report = header + "\n\n".join(filtered_alerts)
-    
-    # REMOVIDO: Linhas que salvam o arquivo localmente, pois não são necessárias no Netlify.
-        
-    return [final_report]
+    # 6. Retornar a resposta HTTP
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({"report": final_report})
+    }
 
-# REMOVIDO: O bloco if __name__ == "__main__": não é necessário para o Netlify Functions.
+# Para Netlify Functions, o arquivo deve ser nomeado como [nome_da_funcao].py
+# e o handler deve ser o ponto de entrada.
+# O nome do arquivo deve ser "whatsapp_report_function.py" e o handler é a função "handler".
+# Para testes locais, você pode chamar a função handler diretamente.
+if __name__ == "__main__":
+    print("--- Teste Local da Função Serverless ---")
+    result = handler(None, None)
+    print(json.dumps(result, indent=4, ensure_ascii=False))
